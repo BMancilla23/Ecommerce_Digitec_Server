@@ -10,11 +10,49 @@ const createUser = asyncHandler(async(req, res) => {
     if (!findUser) {
         // Create a new user
         const newUser = await User.create(req.body);
-        res.json(newUser);
+        res.json({
+            message: 'User created successfully',
+            user: newUser,
+            success: true
+        });
     }
     else{
-        throw new Error('User Already Exist')
+        res.status(404).json({
+            message: 'User already exists',
+            success: false
+        })
     }
 })
 
-module.exports = {createUser}
+const loginUserCtrl = asyncHandler(async (req, res) => {
+    const {email, password} = req.body;
+
+    // Check if user exist or not
+    const findUser = await User.findOne({email});
+    if (findUser){
+        // Si el usuario existe, verifica la contraseña
+        const isPasswordMatched = await findUser.isPasswordMatched(password);
+
+        if(isPasswordMatched){
+            // Contraseña válida, puedes generar un token de autenticación aquí si es necesario
+            res.json({
+                message: 'Login successful',
+                success: true
+            })
+        }else{
+            // Contraseña incorrecta 
+            res.status(401).json({
+                message: 'Incorrect password',
+                success: false
+            })
+        }
+    }else{
+        // Usuario no encontrado
+        res.status(404).json({
+            message: 'User not found',
+            success: false
+        })
+    }
+})
+
+module.exports = {createUser, loginUserCtrl}
