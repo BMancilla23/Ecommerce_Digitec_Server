@@ -1,3 +1,4 @@
+const { generateToken } = require('../config/jwtToken');
 const User = require('../models/user.schema')
 const asyncHandler = require('express-async-handler')
 
@@ -36,8 +37,12 @@ const loginUserCtrl = asyncHandler(async (req, res) => {
         if(isPasswordMatched){
             // Contraseña válida, puedes generar un token de autenticación aquí si es necesario
             res.json({
-                message: 'Login successful',
-                success: true
+                _id: findUser?._id,
+                firstname: findUser?.firstname,
+                lastname: findUser?.lastname,
+                email: findUser?.email,
+                mobile: findUser?.mobile, 
+                token: generateToken(findUser?._id)   
             })
         }else{
             // Contraseña incorrecta 
