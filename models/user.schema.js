@@ -25,6 +25,10 @@ let userSchema = new mongoose.Schema({
         type:String,
         required:true,
     },
+    role: {
+        type: String,
+        default: "user"
+    }
 });
 
 // Define un hook 'pre' que se ejecutará antes de que se guarde un documento en la base de datos
