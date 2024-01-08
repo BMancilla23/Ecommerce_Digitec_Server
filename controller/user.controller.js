@@ -108,6 +108,40 @@ const handleRefreshToken = asyncHandler(async (req, res) => {
   });
 });
 
+// Logout functionality
+const logout = asyncHandler(async (req, res) => {
+  const cookie = req.cookies;
+
+  // Verifica si existe un refreshToken en las cookies
+  if (!cookie?.refreshToken) {
+    throw new Error('No Refresh Token in Cookies');
+  }
+
+  const refreshToken = cookie.refreshToken;
+
+  // Busca al usuario correspondiente al refreshToken en la base de datos
+  const user = await User.findOne({ refreshToken });
+
+  if (!user) {
+    // Si no se encuentra el usuario, limpia la cookie refreshToken y devuelve 204 (No Content)
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: true,
+    });
+   res.sendStatus(204); // No Content
+  }
+
+  // Elimina el refreshToken del usuario en la base de datos
+  await User.findOneAndUpdate({ refreshToken }, { refreshToken: '' });
+
+  // Limpia la cookie refreshToken y devuelve 204 (No Content)
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: true,
+  });
+  res.sendStatus(204); // No Content
+});
+
 // Update a user
 const updatedUser = asyncHandler(async (req, res) => {
   console.log(req.user);
@@ -201,5 +235,7 @@ module.exports = {
   updatedUser,
   blockUser,
   unBlockUser,
-  handleRefreshToken
+  handleRefreshToken,
+  logout
 };
+
