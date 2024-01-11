@@ -3,7 +3,9 @@ const User = require("../models/user.schema");
 const asyncHandler = require("express-async-handler");
 const validateMongoDbId = require("../utils/validateMongodbId");
 const { generateRefreshToken } = require("../config/refreshToken");
-const jwt = require("jsonwebtoken")
+const crypto = require('crypto')
+const jwt = require("jsonwebtoken");
+const sendEmail = require("./email.controller");
 
 const createUser = asyncHandler(async (req, res) => {
   const email = req.body.email;
@@ -241,6 +243,79 @@ const updatePassword = asyncHandler(async (req, res) => {
   }
 })
 
+// Enviar token de restableciemiemnto de contraseña
+const forgotPasswordToken = asyncHandler(async(req, res) => {
+
+  // Extraer el correo electrónico de la solicitud
+  const {email} = req.body;
+
+  // Buscar un usuario con el correo electrónico proporcionado
+  const user = await User.findOne({email})
+
+  // Si no se encuentra el usuario, lanzar un error
+  if (!user) {
+    throw new Error('User not found whit this email')
+  }
+
+  // Crear un token de restablecimiento de contraseña y guardarlo en el usuario
+  const token = await user.createPasswordResetToken();
+  await user.save();
+
+  // Construir la URL de restablecimiento con el token y un mensaje
+  const resetURL = `Hi, Please follow this link to reset Your Password. This link is valid till 10 minutes from new. <a href='http://localhost:5000/api/user/reset-password/${token}'>Click Here</a>`
+
+  // Configura los detalles del correo electrónico
+  const data = {
+    to: email,
+    text: "Hey User",
+    subject: "Forgot Password Link",
+    html: resetURL
+  }
+
+  // Enviar el correo electrónico	con el enlace de restablecimiento
+  sendEmail(data)
+
+  // Devuelve el token como respuesta
+  res.json(token)
+})
+
+// Restablecer la contraseña utilizando un token
+const resetPassword = asyncHandler(async (req, res) => {
+
+  // Extraer la nueva contraseña de la solicitud
+  const {password} = req.body;
+
+  // Extraer el token de los parámetros de la solicitud
+  const {token} = req.params;
+
+  // Hashear el token para compararlo con el almacenado en la base de datos
+  const hashedToken = crypto.createHash('sha256').update(token).digest("hex")
+
+  // Buscar un usuario con el token de restablecimiento válido
+  const user = await User.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: {$gt: Date.now()}
+  })
+
+  // Si no se encuentra un usuario, lanzar un error indicando que el token ha caducado
+  if (!user) {
+    throw new Error("Token Expired, Please try again later");
+  }
+
+  // Actualizar la contraseña del usuario con la nueva contraseña proporcionada
+  user.password = password;
+
+  // Limpiar los campos relacionadaos con el restablecimiento de contraseña
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+
+  // Guardar los cambios en la base de datos
+  await user.save();
+
+  // Devolver el usuario actualziado como respuesta
+  res.json(user)
+})
+
 module.exports = {
   createUser,
   loginUserCtrl,
@@ -252,6 +327,9 @@ module.exports = {
   unBlockUser,
   handleRefreshToken,
   logout,
-  updatePassword
+  updatePassword,
+  forgotPasswordToken,
+  resetPassword
 };
+
 
